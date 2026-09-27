@@ -1,6 +1,8 @@
 "use client"
 
 import { useTransition } from "react"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { PlusIcon, WorkflowIcon } from "lucide-react"
 import {
   Popover,
@@ -28,6 +30,7 @@ interface WorkflowNavProps {
 
 export function WorkflowNav({ workflows, onCreateWorkflow }: WorkflowNavProps) {
   const { state } = useSidebar()
+  const pathname = usePathname()
   const [isPending, startTransition] = useTransition()
 
   const handleCreateWorkflow = () => {
@@ -36,13 +39,19 @@ export function WorkflowNav({ workflows, onCreateWorkflow }: WorkflowNavProps) {
     })
   }
 
-  const workflowItems = workflows.map((workflow) => (
-    <SidebarMenuItem key={workflow.id}>
-      <SidebarMenuButton>
-        <span>{workflow.name}</span>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
-  ))
+  const workflowItems = workflows.map((workflow) => {
+    const href = `/workflows/${workflow.id}`
+
+    return (
+      <SidebarMenuItem key={workflow.id}>
+        <SidebarMenuButton asChild isActive={pathname === href}>
+          <Link href={href}>
+            <span>{workflow.name}</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    )
+  })
 
   // The mobile sidebar renders full width in a sheet, so it uses the expanded
   // list even while `state` reports collapsed.
