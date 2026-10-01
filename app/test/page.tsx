@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server"
+import { TriggerHelloWorldButton } from "@/features/trigger/components/trigger-hello-world-button"
 
 export default async function TestPage() {
   const { userId } = await auth.protect()
@@ -11,6 +12,13 @@ export default async function TestPage() {
         <p className="font-mono text-xs text-muted-foreground">
           userId: {userId}
         </p>
+        <div className="mt-4 border-t pt-4">
+          <h2 className="font-medium">Trigger.dev smoke test</h2>
+          <p className="mb-3 text-muted-foreground">
+            Triggers the hello-world task from a server action.
+          </p>
+          <TriggerHelloWorldButton />
+        </div>
       </div>
     </div>
   )
