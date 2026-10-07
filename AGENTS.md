@@ -13,7 +13,14 @@ Escape apostrophes and quotes in JSX text content — raw ' and " trip the react
 
 Derive database types from the Drizzle schema - never hand-write custom or partial shapes for table rows. Export `typeof table.$inferSelect` (and `$inferInsert` when needed) from `lib/schema.ts` and import it. When a consumer needs only some columns, narrow with `Pick<Row, ...>` / `Omit<Row, ...>` rather than redeclaring a literal type. Don't add an insert type where `db.insert(...).values()` already enforces the shape.
 
+# React Flow - don't trust training data
+
+This project uses ReactFlow (React Flow / @xyflow/react v12) for the canvas. Its APIs, components, hooks, and props change across versions and may differ from your training data. Before writing or changing any ReactFlow code, fetch and consult the official LLM docs index at https://reactflow.dev/llms.txt and follow the linked pages relevant to what you're building. Do not rely on memory for component names, props, hook signatures, or usage patterns.
+
+Don't rely on training data for React Flow — the API has changed across major versions. Before writing or changing any React Flow code (components, hooks, props, types, styling, usage patterns), fetch https://reactflow.dev/llms.txt to find the relevant pages, then read those pages and follow them. This project uses `@xyflow/react` (v12); ignore examples that import from the legacy `reactflow` package.
+
 <!-- TRIGGER.DEV SKILLS START -->
+
 ## Trigger.dev agent skills
 
 This project has Trigger.dev agent skills installed in `.agents/skills/`. Before writing or changing Trigger.dev code (background tasks, scheduled tasks, realtime, or chat.agent AI agents), load the most relevant skill: `trigger-authoring-tasks`, `trigger-chat-agent-advanced`, `trigger-cost-savings`, `trigger-getting-started`, `trigger-realtime-and-frontend`.
