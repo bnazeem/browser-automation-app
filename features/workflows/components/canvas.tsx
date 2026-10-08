@@ -1,11 +1,8 @@
 "use client"
 
-import { useCallback, useState, useSyncExternalStore } from "react"
+import { useSyncExternalStore } from "react"
 import { useTheme } from "next-themes"
 import {
-  addEdge,
-  applyEdgeChanges,
-  applyNodeChanges,
   Background,
   Controls,
   MiniMap,
@@ -14,14 +11,14 @@ import {
   type ColorMode,
   type Edge,
   type Node,
-  type OnConnect,
-  type OnEdgesChange,
-  type OnNodesChange,
   NodeTypes,
 } from "@xyflow/react"
+import { useLiveblocksFlow, Cursors } from "@liveblocks/react-flow"
 import { StepNode } from "@/features/workflows/components/step-node"
 import type { StepNodeType } from "@/features/workflows/nodes/node-registry"
 import "@xyflow/react/dist/style.css"
+import "@liveblocks/react-ui/styles.css"
+import "@liveblocks/react-flow/styles.css"
 
 const nodeTypes: NodeTypes = {
   step: StepNode,
@@ -47,8 +44,12 @@ const initialEdges: Edge[] = []
 const subscribe = () => () => {}
 
 export function Canvas() {
-  const [nodes, setNodes] = useState<Node[]>(initialNodes)
-  const [edges, setEdges] = useState<Edge[]>(initialEdges)
+  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, onDelete } =
+    useLiveblocksFlow<Node, Edge>({
+      suspense: true,
+      nodes: { initial: initialNodes },
+      edges: { initial: initialEdges },
+    })
 
   const { resolvedTheme } = useTheme()
   // resolvedTheme is unknown on the server, so render "light" until hydrated
@@ -61,21 +62,6 @@ export function Canvas() {
   const colorMode: ColorMode =
     isMounted && resolvedTheme === "dark" ? "dark" : "light"
 
-  const onNodesChange: OnNodesChange = useCallback(
-    (changes) =>
-      setNodes((nodesSnapshot) => applyNodeChanges(changes, nodesSnapshot)),
-    []
-  )
-  const onEdgesChange: OnEdgesChange = useCallback(
-    (changes) =>
-      setEdges((edgesSnapshot) => applyEdgeChanges(changes, edgesSnapshot)),
-    []
-  )
-  const onConnect: OnConnect = useCallback(
-    (params) => setEdges((edgesSnapshot) => addEdge(params, edgesSnapshot)),
-    []
-  )
-
   return (
     <div className="size-full">
       <ReactFlow
@@ -85,6 +71,7 @@ export function Canvas() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onDelete={onDelete}
         colorMode={colorMode}
         fitView
         connectionLineType={ConnectionLineType.SmoothStep}
@@ -104,6 +91,7 @@ export function Canvas() {
       >
         {/* <Background /> */}
         <Controls />
+        <Cursors />
         <MiniMap />
       </ReactFlow>
     </div>

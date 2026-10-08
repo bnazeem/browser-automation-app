@@ -1,10 +1,15 @@
 import { auth } from "@clerk/nextjs/server"
 import { WorkflowShell } from "@/features/workflows/components/workflow-shell"
+import { Room } from "@/features/workflows/components/room"
 
-export default async function Page(props: PageProps<"/workflows/[id]">) {
+export default async function Page( { params, }: {params: Promise< { id: string }>} ) {
   await auth.protect()
 
-  const { id } = await props.params
+  const { id } = await params
 
-  return <WorkflowShell workflowId={id} />
+  return (
+    <Room roomId={id}>
+      <WorkflowShell workflowId={id} />
+    </Room>
+  )
 }
