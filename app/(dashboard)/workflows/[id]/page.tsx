@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server"
 import { WorkflowShell } from "@/features/workflows/components/workflow-shell"
 import { Room } from "@/features/workflows/components/room"
 import { notFound } from "next/navigation"
+import { ReactFlowProvider } from "@xyflow/react"
 import { getWorkflow } from "@/features/workflows/data"
 import { liveblocks } from "@/lib/liveblocks"
 
@@ -30,9 +31,12 @@ export default async function Page({
     },
   })
 
+  // One React Flow store shared by the canvas and the sidebar's palette.
   return (
     <Room roomId={id}>
-      <WorkflowShell workflowId={id} />
+      <ReactFlowProvider>
+        <WorkflowShell workflowId={id} />
+      </ReactFlowProvider>
     </Room>
   )
 }
