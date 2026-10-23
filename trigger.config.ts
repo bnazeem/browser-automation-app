@@ -19,4 +19,9 @@ export default defineConfig({
     },
   },
   dirs: ["features"],
+  build: {
+    // Stagehand finds its bundled extension zip relative to its own files.
+    // Bundling it moves the code away from that zip, so keep it external.
+    external: ["@browserbasehq/stagehand"],
+  },
 })
