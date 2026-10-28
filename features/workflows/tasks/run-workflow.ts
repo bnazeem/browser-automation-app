@@ -1,6 +1,10 @@
 import toposort from "toposort"
 import { logger, task } from "@trigger.dev/sdk"
 import { browserbase, Stagehand } from "@browserbasehq/stagehand"
+import {
+  interpolate,
+  type NodeOutputs,
+} from "@/features/workflows/lib/interpolate"
 import { nodeExecutors } from "@/features/workflows/nodes/node-executors"
 
 import { getWorkflow } from "@/features/workflows/data"
@@ -49,15 +53,25 @@ export const runWorkflowTask = task({
       return stagehand
     }
 
+    // Each node's result, keyed by id. Toposort guarantees upstream nodes have
+    // written here before any node that references them via {{ id.path }}.
+    const outputs: NodeOutputs = {}
+
     try {
       for (const id of order) {
         const node = byId.get(id)!
         logger.log(`Running node ${node.data.title} `)
-        // TODO: actually execute the node instaed of just logging it, and report
-        // its progress so the UI can watch the run live.
+        // TODO: report progress so the UI can watch the run live.
         const executor = nodeExecutors[node.data.type]
         if (executor) {
-          const result = await executor({ values: node.data.values, getStagehand })
+          const values = Object.fromEntries(
+            Object.entries(node.data.values).map(([key, text]) => [
+              key,
+              interpolate({ text, outputs }),
+            ])
+          )
+          const result = await executor({ values, getStagehand })
+          outputs[id] = result
           logger.log(`Finished node ${node.data.title}`, { result })
         } else {
           logger.log(`No executor for node type ${node.data.type}`)

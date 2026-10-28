@@ -20,10 +20,9 @@ This project uses ReactFlow (React Flow / @xyflow/react v12) for the canvas. Its
 Don't rely on training data for React Flow — the API has changed across major versions. Before writing or changing any React Flow code (components, hooks, props, types, styling, usage patterns), fetch https://reactflow.dev/llms.txt to find the relevant pages, then read those pages and follow them. This project uses `@xyflow/react` (v12); ignore examples that import from the legacy `reactflow` package.
 
 <!-- TRIGGER.DEV SKILLS START -->
-
 ## Trigger.dev agent skills
 
-This project has Trigger.dev agent skills installed in `.agents/skills/`. Before writing or changing Trigger.dev code (background tasks, scheduled tasks, realtime, or chat.agent AI agents), load the most relevant skill: `trigger-authoring-chat-agent`, `trigger-authoring-tasks`, `trigger-chat-agent-advanced`, `trigger-cost-savings`, `trigger-getting-started`, `trigger-realtime-and-frontend`.
+This project has Trigger.dev agent skills installed in `.agents/skills/`. Before writing or changing Trigger.dev code (background tasks, scheduled tasks, realtime, or chat.agent AI agents), load the most relevant skill: `trigger-authoring-chat-agent`.
 <!-- TRIGGER.DEV SKILLS END -->
 
 # Stagehand Project

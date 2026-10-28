@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useRef, useState, useTransition } from "react"
 import { useReactFlow, useStore } from "@xyflow/react"
 import { MoreHorizontal, Play, Trash2 } from "lucide-react"
 import { toast } from "sonner"
@@ -29,6 +29,7 @@ import {
   deleteWorkflowAction,
   runWorkflowAction,
 } from "@/features/workflows/actions"
+import { useUpstreamConnections } from "@/features/workflows/hooks/use-upstream-connections"
 import { validateGraph } from "@/features/workflows/lib/validate-graph"
 import {
   nodeRegistry,
@@ -90,23 +91,31 @@ function Section({
 // Editor tab — edits the fields of the selected node.
 // ---------------------------------------------------------------------------
 
+type FieldElement = HTMLInputElement | HTMLTextAreaElement
+
 // A single editor field for a node property. Renders a multi-line textarea when
 // the field opts in via `multiline`, otherwise a single-line input.
 function Field({
   field,
   value,
   onChange,
+  onFocus,
+  ref,
 }: {
   field: NodeField
   value: string
   onChange: (value: string) => void
+  onFocus: () => void
+  ref: (el: FieldElement | null) => void
 }) {
   if (field.multiline) {
     return (
       <Textarea
+        ref={ref}
         id={field.key}
         value={value}
         placeholder={field.placeholder}
+        onFocus={onFocus}
         onChange={(e) => onChange(e.target.value)}
       />
     )
@@ -114,17 +123,24 @@ function Field({
 
   return (
     <Input
+      ref={ref}
       id={field.key}
       value={value}
       placeholder={field.placeholder}
+      onFocus={onFocus}
       onChange={(e) => onChange(e.target.value)}
     />
   )
 }
 
-// The Editor tab: one input per field on the selected node, or an empty state.
+// The Editor tab: one input per field on the selected node, plus chips for
+// upstream outputs that insert a {{ }} token into the last-edited field.
+// Keyed by node id, so switching nodes resets the last-edited field.
 function Inspector({ node }: { node: StepNodeType | undefined }) {
   const { updateNodeData } = useReactFlow<StepNodeType>()
+  const connections = useUpstreamConnections(node?.id)
+  const [activeKey, setActiveKey] = useState<string>()
+  const fieldEls = useRef(new Map<string, FieldElement>())
 
   if (!node) {
     return (
@@ -136,6 +152,35 @@ function Inspector({ node }: { node: StepNodeType | undefined }) {
 
   const { type, title, values } = node.data
   const def: NodeDefinition = nodeRegistry[type]
+
+  // Function form so we always merge into the node's latest values.
+  const setValue = (key: string, value: string) =>
+    updateNodeData(node.id, (n) => ({
+      values: { ...n.data.values, [key]: value },
+    }))
+
+  // Insert at the caret of the last-edited field, replacing any selection.
+  // Falls back to appending to the first field if none has been touched.
+  const insertToken = (token: string) => {
+    const key = activeKey ?? def.fields[0]?.key
+    if (!key) return
+
+    const current = values[key] ?? ""
+    const el = fieldEls.current.get(key)
+    const caretEl = key === activeKey ? el : undefined
+    const start = caretEl?.selectionStart ?? current.length
+    const end = caretEl?.selectionEnd ?? current.length
+
+    setValue(key, current.slice(0, start) + token + current.slice(end))
+    setActiveKey(key)
+
+    // Put the caret right after the token once the new value has rendered.
+    const caret = start + token.length
+    requestAnimationFrame(() => {
+      el?.focus()
+      el?.setSelectionRange(caret, caret)
+    })
+  }
 
   return (
     <Section title={title} icon={<NodeIcon type={type} />}>
@@ -150,16 +195,43 @@ function Inspector({ node }: { node: StepNodeType | undefined }) {
                 {field.required && <span className="text-destructive">*</span>}
               </Label>
               <Field
+                ref={(el) => {
+                  if (el) fieldEls.current.set(field.key, el)
+                  else fieldEls.current.delete(field.key)
+                }}
                 field={field}
                 value={values[field.key] ?? ""}
-                onChange={(value) => {
-                  updateNodeData(node.id, {
-                    values: { ...values, [field.key]: value },
-                  })
-                }}
+                onFocus={() => setActiveKey(field.key)}
+                onChange={(value) => setValue(field.key, value)}
               />
             </div>
           ))
+        )}
+
+        {connections.length > 0 && (
+          <div className="flex flex-col gap-1.5 border-t border-border pt-3">
+            <Label className="text-xs">Connections</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {connections.map((c) => (
+                <Button
+                  key={c.token}
+                  size="xs"
+                  variant="outline"
+                  title={c.token}
+                  // Keep focus (and the caret) in the field being edited.
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => insertToken(c.token)}
+                  className="h-auto max-w-full py-1 pl-1"
+                >
+                  <NodeIcon
+                    type={c.type}
+                    className="size-4 rounded-sm [&_svg]:size-2.5"
+                  />
+                  <span className="truncate">{c.label}</span>
+                </Button>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </Section>
@@ -388,7 +460,7 @@ export function RightSidebar({ workflowId }: { workflowId: string }) {
           <Palette />
         </TabsContent>
         <TabsContent value="editor" className="flex min-h-0 flex-col">
-          <Inspector node={selected} />
+          <Inspector key={selected?.id} node={selected} />
         </TabsContent>
       </Tabs>
     </ResizablePanel>
