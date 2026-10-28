@@ -1,5 +1,7 @@
 import { auth } from "@clerk/nextjs/server"
+import { auth as triggerAuth } from "@trigger.dev/sdk"
 import { WorkflowShell } from "@/features/workflows/components/workflow-shell"
+import { WorkflowRunsProvider } from "@/features/workflows/components/workflow-runs-provider"
 import { Room } from "@/features/workflows/components/room"
 import { notFound } from "next/navigation"
 import { ReactFlowProvider } from "@xyflow/react"
@@ -31,11 +33,20 @@ export default async function Page({
     },
   })
 
+  // Read-only realtime token, limited to this workflow's runs (tagged in
+  // runWorkflowAction). Scoped by tag so it can't read other workflows' runs.
+  const runsToken = await triggerAuth.createPublicToken({
+    scopes: { read: { tags: [`workflow:${id}`] } },
+    expirationTime: "1h",
+  })
+
   // One React Flow store shared by the canvas and the sidebar's palette.
   return (
     <Room roomId={id}>
       <ReactFlowProvider>
-        <WorkflowShell workflowId={id} />
+        <WorkflowRunsProvider workflowId={id} accessToken={runsToken}>
+          <WorkflowShell workflowId={id} />
+        </WorkflowRunsProvider>
       </ReactFlowProvider>
     </Room>
   )

@@ -1,5 +1,5 @@
 import toposort from "toposort"
-import { logger, task } from "@trigger.dev/sdk"
+import { logger, metadata, task } from "@trigger.dev/sdk"
 import { browserbase, Stagehand } from "@browserbasehq/stagehand"
 import {
   interpolate,
@@ -8,6 +8,14 @@ import {
 import { nodeExecutors } from "@/features/workflows/nodes/node-executors"
 
 import { getWorkflow } from "@/features/workflows/data"
+
+export type RunStepStatus = "pending" | "running" | "done" | "failed"
+
+// One node's live status in a run, streamed to the canvas via run metadata.
+export type RunStep = {
+  nodeId: string
+  status: RunStepStatus
+}
 
 // The trigger.dev task the Run button fires. It loads the saved grapg, works out
 // what order the nodes should run in, and walks them. For now each node just
@@ -57,23 +65,49 @@ export const runWorkflowTask = task({
     // written here before any node that references them via {{ id.path }}.
     const outputs: NodeOutputs = {}
 
+    // Live per-node status for the canvas, published under metadata "steps".
+    // Replaced with a fresh array on every change so each publish is a snapshot.
+    let steps: RunStep[] = order.map((nodeId) => ({
+      nodeId,
+      status: "pending",
+    }))
+    const setStatus = (nodeId: string, status: RunStepStatus) => {
+      steps = steps.map((s) => (s.nodeId === nodeId ? { ...s, status } : s))
+      metadata.set("steps", steps)
+    }
+    metadata.set("steps", steps)
+
     try {
       for (const id of order) {
         const node = byId.get(id)!
         logger.log(`Running node ${node.data.title} `)
-        // TODO: report progress so the UI can watch the run live.
         const executor = nodeExecutors[node.data.type]
         if (executor) {
-          const values = Object.fromEntries(
-            Object.entries(node.data.values).map(([key, text]) => [
-              key,
-              interpolate({ text, outputs }),
-            ])
-          )
-          const result = await executor({ values, getStagehand })
-          outputs[id] = result
-          logger.log(`Finished node ${node.data.title}`, { result })
+          // Flush now, or "done" overwrites "running" before it's ever pushed.
+          setStatus(id, "running")
+          await metadata.flush()
+
+          try {
+            const values = Object.fromEntries(
+              Object.entries(node.data.values).map(([key, text]) => [
+                key,
+                interpolate({ text, outputs }),
+              ])
+            )
+            const result = await executor({ values, getStagehand })
+            outputs[id] = result
+            setStatus(id, "done")
+            logger.log(`Finished node ${node.data.title}`, { result })
+          } catch (err) {
+            // A thrown run returns no output, so the flushed metadata is the
+            // only way the failed state reaches the canvas.
+            setStatus(id, "failed")
+            await metadata.flush()
+            throw err
+          }
         } else {
+          // Nothing to execute (e.g. the Start trigger) - don't leave it pending.
+          setStatus(id, "done")
           logger.log(`No executor for node type ${node.data.type}`)
         }
       }
@@ -85,6 +119,8 @@ export const runWorkflowTask = task({
       }
     }
 
-    return { steps: order.length }
+    // Final snapshot as output, so a successful run's end state is guaranteed
+    // even if the last background metadata flush hasn't landed.
+    return { steps }
   },
 })
