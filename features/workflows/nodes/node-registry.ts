@@ -1,5 +1,13 @@
 import type { Node } from "@xyflow/react"
-import { Globe, MousePointerClick, type LucideIcon } from "lucide-react"
+import {
+  Bot,
+  Eye,
+  Globe,
+  MousePointerClick,
+  ScanText,
+  WandSparkles,
+  type LucideIcon,
+} from "lucide-react"
 
 export type StepNodeKind = "trigger" | "action"
 
@@ -68,6 +76,86 @@ export const nodeRegistry = {
         path: "title",
         label: "Title",
       },
+    ],
+  },
+  act: {
+    type: "act",
+    kind: "action",
+    label: "Act",
+    icon: WandSparkles,
+    accent: "bg-violet-500 text-white",
+    fields: [
+      {
+        key: "instruction",
+        label: "Instruction",
+        placeholder: "Click the sign in button",
+        multiline: true,
+        required: true,
+      },
+    ],
+    outputs: [
+      { path: "success", label: "Success" },
+      { path: "message", label: "Message" },
+      { path: "url", label: "URL" },
+    ],
+  },
+  extract: {
+    type: "extract",
+    kind: "action",
+    label: "Extract",
+    icon: ScanText,
+    accent: "bg-amber-500 text-white",
+    fields: [
+      {
+        key: "instruction",
+        label: "Instruction",
+        placeholder: "Extract the article headline and author",
+        multiline: true,
+        required: true,
+      },
+    ],
+    outputs: [{ path: "result", label: "Result" }],
+  },
+  observe: {
+    type: "observe",
+    kind: "action",
+    label: "Observe",
+    icon: Eye,
+    accent: "bg-sky-500 text-white",
+    fields: [
+      {
+        key: "instruction",
+        label: "Instruction",
+        placeholder: "Find the search input",
+        multiline: true,
+        required: true,
+      },
+    ],
+    outputs: [
+      { path: "matches", label: "Matches" },
+      { path: "matches[0].selector", label: "First selector" },
+      { path: "matches[0].description", label: "First description" },
+    ],
+  },
+  agent: {
+    type: "agent",
+    kind: "action",
+    label: "Agent",
+    icon: Bot,
+    accent: "bg-rose-500 text-white",
+    fields: [
+      {
+        key: "instruction",
+        label: "Instruction",
+        placeholder: "Sign in and open the account settings page",
+        multiline: true,
+        required: true,
+      },
+    ],
+    outputs: [
+      { path: "success", label: "Success" },
+      { path: "message", label: "Message" },
+      { path: "completed", label: "Completed" },
     ],
   },
 } satisfies Record<string, NodeDefinition>

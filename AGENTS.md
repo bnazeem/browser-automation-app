@@ -5,6 +5,16 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+# Adding a workflow node
+
+Three edits, all under `features/workflows/nodes/`:
+
+1. the impl file (e.g. `open-url.ts`) — the node's executor logic,
+2. register it in `node-executors.ts` — the `satisfies` contract makes a missing executor a compile error for action nodes,
+3. add its manifest entry in `node-registry.ts` — kind, label, icon, accent, its input `fields`, and the `outputs` downstream nodes can reference.
+
+The run task and the canvas step node are registry-driven — never touch them to add a node.
+
 # JSX text escaping
 
 Escape apostrophes and quotes in JSX text content — raw ' and " trip the react/no-unescaped-entities lint rule. Use &apos; for apostrophes and &quot; for quotes (e.g. you&apos;re, doesn&apos;t). This applies only to literal text between JSX tags, not to string attribute values or JS strings.
@@ -20,9 +30,10 @@ This project uses ReactFlow (React Flow / @xyflow/react v12) for the canvas. Its
 Don't rely on training data for React Flow — the API has changed across major versions. Before writing or changing any React Flow code (components, hooks, props, types, styling, usage patterns), fetch https://reactflow.dev/llms.txt to find the relevant pages, then read those pages and follow them. This project uses `@xyflow/react` (v12); ignore examples that import from the legacy `reactflow` package.
 
 <!-- TRIGGER.DEV SKILLS START -->
+
 ## Trigger.dev agent skills
 
-This project has Trigger.dev agent skills installed in `.agents/skills/`. Before writing or changing Trigger.dev code (background tasks, scheduled tasks, realtime, or chat.agent AI agents), load the most relevant skill: `trigger-authoring-chat-agent`.
+This project has Trigger.dev agent skills installed in `.agents/skills/`. Before writing or changing Trigger.dev code (background tasks, scheduled tasks, realtime, or chat.agent AI agents), load the most relevant skill: `trigger-authoring-chat-agent`, `trigger-authoring-tasks`, `trigger-chat-agent-advanced`, `trigger-cost-savings`, `trigger-getting-started`, `trigger-realtime-and-frontend`.
 <!-- TRIGGER.DEV SKILLS END -->
 
 # Stagehand Project
