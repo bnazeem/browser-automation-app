@@ -9,6 +9,7 @@ import { agent } from "@/features/workflows/nodes/agent"
 import { extract } from "@/features/workflows/nodes/extract"
 import { observe } from "@/features/workflows/nodes/observe"
 import { openUrl } from "@/features/workflows/nodes/open-url"
+import { sendEmail } from "@/features/workflows/nodes/send-email"
 
 export type NodeContext = {
   values: Record<string, string>
@@ -37,4 +38,7 @@ export const nodeExecutors: Partial<Record<NodeType, NodeExecutor>> = {
       stagehand: await getStagehand(),
       instruction: values.instruction,
     }),
+  // No browser step - never calls getStagehand, so no session is started.
+  "send-email": async ({ values }) =>
+    sendEmail({ to: values.to, subject: values.subject, body: values.body }),
 } satisfies Record<ActionNodeType, NodeExecutor>
