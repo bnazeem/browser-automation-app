@@ -6,15 +6,38 @@ import {
   type NodeOutputs,
 } from "@/features/workflows/lib/interpolate"
 import { nodeExecutors } from "@/features/workflows/nodes/node-executors"
+import type { NodeType } from "@/features/workflows/nodes/node-registry"
 
 import { getWorkflow } from "@/features/workflows/data"
 
+// Plain JSON - what run metadata can hold.
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | Json[]
+  | { [key: string]: Json }
+
+// Executors return unknown; round-trip through JSON so the step stores exactly
+// what metadata would (Dates become strings, undefined/functions drop out).
+const toJson = (value: unknown): Json | undefined =>
+  value === undefined ? undefined : JSON.parse(JSON.stringify(value))
+
 export type RunStepStatus = "pending" | "running" | "done" | "failed"
 
-// One node's live status in a run, streamed to the canvas via run metadata.
+// One node's record in a run, streamed to the canvas and console via run
+// metadata. type and title are snapshotted at run time so the console can still
+// show the step after the node is renamed or deleted from the canvas.
 export type RunStep = {
   nodeId: string
+  type: NodeType // keys into nodeRegistry for the icon
+  title: string
   status: RunStepStatus
+  startedAt?: number // epoch ms, set when it starts running
+  durationMs?: number // set once it's done or failed
+  output?: Json // the executor's result
+  error?: string // the thrown message, if it failed
 }
 
 // The trigger.dev task the Run button fires. It loads the saved grapg, works out
@@ -65,14 +88,14 @@ export const runWorkflowTask = task({
     // written here before any node that references them via {{ id.path }}.
     const outputs: NodeOutputs = {}
 
-    // Live per-node status for the canvas, published under metadata "steps".
-    // Replaced with a fresh array on every change so each publish is a snapshot.
-    let steps: RunStep[] = order.map((nodeId) => ({
-      nodeId,
-      status: "pending",
-    }))
-    const setStatus = (nodeId: string, status: RunStepStatus) => {
-      steps = steps.map((s) => (s.nodeId === nodeId ? { ...s, status } : s))
+    // Live per-node records, published under metadata "steps". Replaced with a
+    // fresh array on every change so each publish is a snapshot.
+    let steps: RunStep[] = order.map((nodeId) => {
+      const { type, title } = byId.get(nodeId)!.data
+      return { nodeId, type, title, status: "pending" }
+    })
+    const updateStep = (nodeId: string, patch: Partial<RunStep>) => {
+      steps = steps.map((s) => (s.nodeId === nodeId ? { ...s, ...patch } : s))
       metadata.set("steps", steps)
     }
     metadata.set("steps", steps)
@@ -82,9 +105,10 @@ export const runWorkflowTask = task({
         const node = byId.get(id)!
         logger.log(`Running node ${node.data.title} `)
         const executor = nodeExecutors[node.data.type]
+        const startedAt = Date.now()
         if (executor) {
           // Flush now, or "done" overwrites "running" before it's ever pushed.
-          setStatus(id, "running")
+          updateStep(id, { status: "running", startedAt })
           await metadata.flush()
 
           try {
@@ -96,18 +120,26 @@ export const runWorkflowTask = task({
             )
             const result = await executor({ values, getStagehand })
             outputs[id] = result
-            setStatus(id, "done")
+            updateStep(id, {
+              status: "done",
+              durationMs: Date.now() - startedAt,
+              output: toJson(result),
+            })
             logger.log(`Finished node ${node.data.title}`, { result })
           } catch (err) {
             // A thrown run returns no output, so the flushed metadata is the
             // only way the failed state reaches the canvas.
-            setStatus(id, "failed")
+            updateStep(id, {
+              status: "failed",
+              durationMs: Date.now() - startedAt,
+              error: err instanceof Error ? err.message : String(err),
+            })
             await metadata.flush()
             throw err
           }
         } else {
           // Nothing to execute (e.g. the Start trigger) - don't leave it pending.
-          setStatus(id, "done")
+          updateStep(id, { status: "done", startedAt, durationMs: 0 })
           logger.log(`No executor for node type ${node.data.type}`)
         }
       }
